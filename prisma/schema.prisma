@@ -1,0 +1,170 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum ServiceStatus {
+  OPERATIONAL
+  DEGRADED
+  PARTIAL_OUTAGE
+  MAJOR_OUTAGE
+}
+
+enum IncidentStatus {
+  INVESTIGATING
+  IDENTIFIED
+  MONITORING
+  RESOLVED
+}
+
+enum IncidentImpact {
+  NONE
+  MINOR
+  MAJOR
+  CRITICAL
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model Organization {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  clerkId   String
+  name      String
+  slug      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  services     Service[]
+  incidents    Incident[]
+  maintenances Maintenance[]
+
+  @@unique([clerkId])
+  @@unique([slug])
+  @@map("organizations")
+}
+
+model Service {
+  id             String        @id @default(auto()) @map("_id") @db.ObjectId
+  organizationId String        @db.ObjectId
+  name           String
+  description    String?
+  status         ServiceStatus @default(OPERATIONAL)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization       Organization          @relation(fields: [organizationId], references: [id])
+  incidents          ServiceIncident[]
+  maintenances       ServiceMaintenance[]
+  statusHistory      StatusHistory[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("services")
+}
+
+model Incident {
+  id             String         @id @default(auto()) @map("_id") @db.ObjectId
+  organizationId String         @db.ObjectId
+  title          String
+  description    String?
+  status         IncidentStatus @default(INVESTIGATING)
+  impact         IncidentImpact @default(MAJOR)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  resolvedAt     DateTime?
+
+  organization      Organization        @relation(fields: [organizationId], references: [id])
+  services          ServiceIncident[]
+  updates           IncidentUpdate[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("incidents")
+}
+
+model IncidentUpdate {
+  id         String         @id @default(auto()) @map("_id") @db.ObjectId
+  incidentId String         @db.ObjectId
+  status     IncidentStatus
+  message    String
+  createdAt  DateTime       @default(now())
+
+  incident Incident @relation(fields: [incidentId], references: [id])
+
+  @@index([incidentId])
+  @@map("incident_updates")
+}
+
+model Maintenance {
+  id             String            @id @default(auto()) @map("_id") @db.ObjectId
+  organizationId String            @db.ObjectId
+  title          String
+  description    String?
+  scheduledStart DateTime
+  scheduledEnd   DateTime
+  status         MaintenanceStatus @default(SCHEDULED)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization Organization        @relation(fields: [organizationId], references: [id])
+  services     ServiceMaintenance[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("maintenances")
+}
+
+model ServiceIncident {
+  id         String @id @default(auto()) @map("_id") @db.ObjectId
+  incidentId String @db.ObjectId
+  serviceId  String @db.ObjectId
+
+  incident Incident @relation(fields: [incidentId], references: [id])
+  service  Service  @relation(fields: [serviceId], references: [id])
+
+  @@unique([incidentId, serviceId])
+  @@index([serviceId])
+  @@index([incidentId])
+  @@map("service_incidents")
+}
+
+model ServiceMaintenance {
+  id           String @id @default(auto()) @map("_id") @db.ObjectId
+  maintenanceId String @db.ObjectId
+  serviceId     String @db.ObjectId
+
+  maintenance Maintenance @relation(fields: [maintenanceId], references: [id])
+  service      Service     @relation(fields: [serviceId], references: [id])
+
+  @@unique([maintenanceId, serviceId])
+  @@index([serviceId])
+  @@index([maintenanceId])
+  @@map("service_maintenances")
+}
+
+model StatusHistory {
+  id        String        @id @default(auto()) @map("_id") @db.ObjectId
+  serviceId String        @db.ObjectId
+  status    ServiceStatus
+  changedAt DateTime      @default(now())
+  changedBy String?       // Clerk user ID
+
+  service Service @relation(fields: [serviceId], references: [id])
+
+  @@index([serviceId])
+  @@index([changedAt])
+  @@map("status_history")
+}
+

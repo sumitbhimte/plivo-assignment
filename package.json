@@ -1,0 +1,27 @@
+{
+  "name": "status-page-app",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "cd client && npm run dev",
+    "dev:server": "cd server && npm run dev",
+    "build": "npm run build:server && npm run build:client",
+    "build:client": "cd client && npm run build",
+    "build:server": "cd server && npm run build",
+    "db:generate": "prisma generate --schema=./prisma/schema.prisma",
+    "db:push": "dotenv -e .env.local -- prisma db push --schema=./prisma/schema.prisma",
+    "db:migrate": "dotenv -e .env.local -- prisma migrate dev --schema=./prisma/schema.prisma",
+    "db:studio": "dotenv -e .env.local -- prisma studio --schema=./prisma/schema.prisma",
+    "install:all": "npm install && cd client && npm install && cd ../server && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "dotenv-cli": "^11.0.0",
+    "prisma": "^5.19.0"
+  }
+}
