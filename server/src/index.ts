@@ -3,13 +3,28 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import { fileURLToPath } from "url";
+import { dirname, resolve } from "path";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { authMiddleware } from "./middleware/auth";
 
+// Get current directory for ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 // Load environment variables
-// Try root .env.local first, then fallback to server/.env
-dotenv.config({ path: "../.env.local" });
-dotenv.config({ path: ".env" });
+// Try root .env.local first (two levels up from server/src), then fallback to server/.env
+const rootEnvPath = resolve(__dirname, "../../.env.local");
+const serverEnvPath = resolve(__dirname, "../.env");
+
+// Debug: Log which env files are being loaded (only in development)
+if (process.env.NODE_ENV !== "production") {
+  console.log(`📁 Loading env from: ${rootEnvPath}`);
+  console.log(`📁 Fallback env: ${serverEnvPath}`);
+}
+
+dotenv.config({ path: rootEnvPath });
+dotenv.config({ path: serverEnvPath });
 
 const app = express();
 const httpServer = createServer(app);

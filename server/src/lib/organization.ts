@@ -41,14 +41,28 @@ export async function syncOrganization(clerkOrgId: string) {
  * Get or create organization for a Clerk org ID
  */
 export async function getOrCreateOrganization(clerkOrgId: string) {
-  let org = await prisma.organization.findUnique({
-    where: { clerkId: clerkOrgId },
-  });
+  try {
+    let org = await prisma.organization.findUnique({
+      where: { clerkId: clerkOrgId },
+    });
 
-  if (!org) {
-    org = await syncOrganization(clerkOrgId);
+    if (!org) {
+      org = await syncOrganization(clerkOrgId);
+    }
+
+    return org;
+  } catch (error: any) {
+    // Check for MongoDB database name error
+    if (error?.message?.includes("empty database name not allowed") || 
+        error?.message?.includes("AtlasError")) {
+      throw new Error(
+        "Database configuration error: DATABASE_URL is missing a database name.\n\n" +
+        "Please update your .env.local file with a DATABASE_URL that includes a database name:\n" +
+        "  mongodb+srv://user:password@cluster.mongodb.net/your_database_name\n\n" +
+        "The database name must be specified after the host in the connection string."
+      );
+    }
+    throw error;
   }
-
-  return org;
 }
 

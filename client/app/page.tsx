@@ -17,8 +17,8 @@ export default async function Home() {
       <div className="z-10 max-w-5xl w-full items-center justify-between">
         <div className="text-center mb-12">
           <h1 className="text-5xl font-bold mb-4">
-            Status Page Application
-          </h1>
+          Status Page Application
+        </h1>
           <p className="text-xl text-muted-foreground mb-8">
             Monitor and manage your services, incidents, and maintenance windows
           </p>

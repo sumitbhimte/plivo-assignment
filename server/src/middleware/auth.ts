@@ -22,21 +22,33 @@ export const requireAuth = async (
 
     // Hardcoded admin check: If username is "admin123", bypass organization requirement
     let isHardcodedAdmin = false;
+    let effectiveOrgId = orgId;
+
     try {
       const user = await clerkClient.users.getUser(userId);
       if (user.username === "admin123") {
         isHardcodedAdmin = true;
         (req as any).isAdmin = true;
+
+        if (!effectiveOrgId) {
+          const memberships = await clerkClient.users.getOrganizationMembershipList({
+            userId,
+          });
+          const firstMembership = memberships.data[0];
+          if (firstMembership) {
+            effectiveOrgId = firstMembership.organization.id;
+          }
+        }
       }
     } catch (error) {
       // Continue if we can't fetch user
     }
 
-    // Sync organization to our database if orgId exists
+    // Sync organization to our database if we have one
     let dbOrgId = null;
-    if (orgId) {
+    if (effectiveOrgId) {
       try {
-        const org = await getOrCreateOrganization(orgId);
+        const org = await getOrCreateOrganization(effectiveOrgId);
         dbOrgId = org.id;
       } catch (error) {
         console.error("Error syncing organization:", error);
@@ -44,19 +56,9 @@ export const requireAuth = async (
       }
     }
 
-    // For hardcoded admin, create a default organization if needed
-    if (isHardcodedAdmin && !dbOrgId && orgId) {
-      try {
-        const org = await getOrCreateOrganization(orgId);
-        dbOrgId = org.id;
-      } catch (error) {
-        // If org sync fails, admin can still proceed
-      }
-    }
-
     // Attach user info to request
     (req as any).userId = userId;
-    (req as any).orgId = orgId; // Clerk org ID
+    (req as any).orgId = effectiveOrgId || null; // Clerk org ID (with fallback)
     (req as any).dbOrgId = dbOrgId; // Our database org ID
     (req as any).orgRole = isHardcodedAdmin ? "admin" : orgRole;
     (req as any).orgPermissions = orgPermissions;
@@ -76,8 +78,8 @@ export const requireOrg = async (
   next: NextFunction
 ) => {
   try {
-    const { orgId } = getAuth(req);
     const isHardcodedAdmin = (req as any).isHardcodedAdmin;
+    const orgId = (req as any).orgId || getAuth(req).orgId;
     
     // Hardcoded admin can bypass organization requirement
     if (isHardcodedAdmin) {
